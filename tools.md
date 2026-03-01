@@ -23,22 +23,6 @@ peekaboo permissions status            # Check TCC permissions
 
 ---
 
-## clawdis 📡
-WhatsApp/Telegram messaging gateway and agent interface.
-
-**Location**: `~/Projects/clawdis`
-
-**Commands**:
-```bash
-clawdis login                          # Link WhatsApp via QR
-clawdis send --to <number> --message "text"  # Send message
-clawdis agent --message "text"         # Talk to agent directly
-clawdis gateway                        # Run WebSocket gateway
-clawdis status                         # Session health
-```
-
----
-
 ## gh
 GitHub CLI for PRs, issues, CI, releases.
 
