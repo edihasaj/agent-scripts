@@ -133,6 +133,11 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 - GitHub CLI for PRs/CI/releases. Given issue/PR URL (or `/pull/5`): use `gh`, not web search.
 - Examples: `gh issue view <url> --comments -R owner/repo`, `gh pr view <url> --comments --files -R owner/repo`.
 
+### obsidian
+- Obsidian workflow:
+- Assume `obsidian` CLI is available and use it first (`vault="main"`).
+- If CLI is missing/fails, use fallback checks from filesystem/history only.
+
 ### Slash Commands
 - Global: `~/.codex/prompts/`. Repo-local: `docs/slash-commands/`.
 - Common: `/handoff`, `/pickup`.
