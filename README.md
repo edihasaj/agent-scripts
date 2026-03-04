@@ -41,5 +41,5 @@ This folder collects the shared guardrail helpers so they are easy to reuse acro
 - Downstream repos should contain the pointer line plus any repo-local additions.
 - During a sync sweep: pull latest `agent-scripts`, ensure each target repo’s `AGENTS.MD` contains the pointer line at the top, append any repo-local notes beneath it, and update the helper scripts as needed.
 - If a repo needs custom instructions, clearly separate them from the pointer so future sweeps don’t overwrite local content.
-- For submodules (Peekaboo/*), repeat the pointer check inside each subrepo, push those changes, then bump submodule SHAs in the parent repo.
+- For submodules, repeat the pointer check inside each subrepo, push those changes, then bump submodule SHAs in the parent repo.
 - Skip experimental repos (e.g., `poltergeist-pitui`) unless explicitly requested.

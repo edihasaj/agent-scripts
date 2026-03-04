@@ -28,7 +28,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 - Documented the new helper in the README so downstream repos know how to run `pnpm tsx scripts/browser-tools.ts --help`.
 
 ## 2025-11-16 — Browser Tools Pipe Detection
-- Updated `scripts/browser-tools.ts` to enumerate and kill Chrome instances started with `--remote-debugging-pipe` (the default for Peekaboo/Tachikoma) in addition to the classic `--remote-debugging-port`. List/kill now show “debugging pipe” when no port exists and still fetch tab metadata when it does.
+- Updated `scripts/browser-tools.ts` to enumerate and kill Chrome instances started with `--remote-debugging-pipe` (the default for some automation clients) in addition to the classic `--remote-debugging-port`. List/kill now show “debugging pipe” when no port exists and still fetch tab metadata when it does.
 - README now notes the optional `NODE_PATH=$(npm root -g)` trick so the helper can run from bare copies of the repo without a local `package.json`.
 
 ## 2025-11-14 — Compact Runner Summaries

@@ -73,6 +73,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Avoid manual `git stash`; if Git auto-stashes during pull/rebase, that’s fine (hint, not hard guardrail).
 - If user types a command (“pull and push”), that’s consent for that command.
 - No amend unless asked.
+- Do not add Co-Authored-By trailers to commits.
 - Big review: `git --no-pager diff --color=never`.
 - Multi-agent: check `git status/diff` before edits; ship small commits.
 
@@ -94,10 +95,6 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 ## Tools
 
 Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
-
-### peekaboo
-- Screen tools: `~/Projects/Peekaboo`. Cmds: `capture`, `see`, `click`, `list`, `tools`, `permissions status`.
-- Needs Screen Recording + Accessibility. Docs: `~/Projects/Peekaboo/docs/commands/`.
 
 ### committer
 - Commit helper (PATH). Stages only listed paths; required here. Repo may also ship `./scripts/committer`.
