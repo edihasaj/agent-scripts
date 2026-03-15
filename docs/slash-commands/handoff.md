@@ -20,4 +20,4 @@ Include (in order):
 
 Output format: concise bullet list; include copy/paste tmux commands for any live sessions.
 
-Location: global prompt lives in `~/.codex/prompts/handoff.md`; this file mirrors it for easy edits.
+Source of truth: `docs/slash-commands/handoff.md`. Link Codex/Claude command paths to this file.

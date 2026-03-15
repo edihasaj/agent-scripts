@@ -19,4 +19,4 @@ Steps:
 
 Output format: concise bullet summary; include copy/paste tmux attach/capture commands when live sessions are present.
 
-Location: global prompt lives in `~/.codex/prompts/pickup.md`; this file mirrors it for easy edits.
+Source of truth: `docs/slash-commands/pickup.md`. Link Codex/Claude command paths to this file.

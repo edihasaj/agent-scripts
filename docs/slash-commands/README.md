@@ -5,7 +5,13 @@ read_when:
 ---
 # Slash Commands
 
-Slash commands are reusable prompt templates that live in `~/.codex/prompts/` (global) and, when present, in repo-local folders (e.g., `.claude/commands/`, `.cursor/commands/`). This folder mirrors the global set so agents can discover and edit them in-repo.
+Source of truth: this directory.
+
+Sync targets:
+- Codex: symlink `~/.codex/prompts/<name>.md` -> `docs/slash-commands/<name>.md`
+- Claude: symlink `.claude/commands/<name>.md` -> `docs/slash-commands/<name>.md`
+
+Do not keep copied command files in `.claude/commands/` or Codex prompt folders.
 
 ## Available commands
 - `/acceptpr` — Land one PR end-to-end (changelog + thanks, lint, merge, back to main).

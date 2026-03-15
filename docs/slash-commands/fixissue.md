@@ -16,4 +16,4 @@ Do (in order):
 
 If the issue URL/number isn’t provided, ask for it before the changelog/comment steps.
 
-Location: global prompt lives in `~/.codex/prompts/fixissue.md`; this file mirrors it for easy edits.
+Source of truth: `docs/slash-commands/fixissue.md`. Link Codex/Claude command paths to this file.

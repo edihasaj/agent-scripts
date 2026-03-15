@@ -22,6 +22,8 @@ This folder collects the shared guardrail helpers so they are easy to reuse acro
 
 ## Browser Automation Policy
 - **Default:** Use globally configured `chrome-devtools` MCP in Codex/Claude.
+- **Live session attach:** Chrome DevTools MCP can attach to an active Chrome session via `--autoConnect`; see Chrome’s official guide: https://developer.chrome.com/blog/chrome-devtools-mcp-debug-your-browser-session
+- **Chrome setup:** Enable remote debugging in Chrome at `chrome://inspect/#remote-debugging`. Per Chrome’s post, `--channel=beta` was required until Chrome 144 reached stable.
 - **Repo-local MCPs:** Add only when a repo needs specific credentials/dependencies.
 - **`browser-tools` status:** Kept as break-glass fallback for MCP outages or shell-only workflows.
 
