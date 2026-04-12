@@ -116,6 +116,11 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 ### xcodegen
 - Generates Xcode projects from YAML specs; run `xcodegen --help`.
 
+### Recall.app
+- Production Recall app installs to `/Applications/Recall.app`.
+- Use it to manage the bundled Recall daemon instead of repo-local dev scripts.
+- If a repo has `.recall/context.md`, read it before repo-specific assumptions.
+
 ### lldb
 - Use `lldb` inside tmux to debug native apps; attach to the running app to inspect state.
 
