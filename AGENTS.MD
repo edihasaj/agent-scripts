@@ -118,11 +118,13 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 
 ### Recall
 - Recall runs locally via `/Applications/Recall.app`.
-- Recall stores repo memory centrally; agents should load it through Recall MCP.
-- Query Recall MCP for repo-specific context before making assumptions.
-- Report explicit user corrections and review feedback back to Recall MCP so memory improves over time.
+- Repo memory is injected structurally via lifecycle hooks — you don't need to ask for it. Recall writes it into SessionStart and every UserPromptSubmit via `hookSpecificOutput.additionalContext`. If you see a "Recall memory for this repo:" block in context, use it.
+- MCP tools (`recall.query`, `recall.list`, …) are fallbacks. Only call `recall.query` when (a) injected context clearly missed something specific, (b) the user asks for a lookup, or (c) you need memory for a different repo than the current one.
+- Report explicit user corrections back via `recall.report_correction` and review feedback via `recall.report_review` so memory improves over time.
+- When you see outdated memory, use `recall.reject` or correct it — don't silently ignore.
+- Use `recall doctor` to check install state; `recall doctor --fix` or `recall setup local` wires MCP + hooks for any detected Codex/Claude Code.
 - Use repo-local dev scripts only when working on Recall itself.
-- Repo-local `.recall/context.md` is optional export/fallback, not the primary integration.
+- Repo-local `.recall/context.md` is an optional export/fallback, not the primary integration.
 
 ### lldb
 - Use `lldb` inside tmux to debug native apps; attach to the running app to inspect state.
