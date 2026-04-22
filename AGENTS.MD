@@ -125,7 +125,7 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
   - `RECALL_HOOK_INJECT_CONTEXT=false` — disable hook injection entirely.
 - MCP tools (`recall.query`, `recall.list`, …) are fallbacks. Only call `recall.query` when (a) the injected block clearly missed something, (b) the user asks for a lookup, or (c) you need memory for a different repo than the current one.
 - Report explicit user corrections back via `recall.report_correction` (phrase as "always X" / "don't Y, use Z"); review feedback via `recall.report_review`. When a memory is outdated, use `recall.reject` — don't silently ignore.
-- Memory "rethinking": when `recall maintenance credentials set openai|anthropic` has stored an API key, the daemon runs the dispatcher daily (tunable via `RECALL_DISPATCHER_INTERVAL_SECONDS`) to refine/merge/summarize memories. Observability: `recall maintenance usage`, `recall maintenance stats`. Without a key, pending tasks surface via SessionStart for the live agent to claim.
+- Memory "rethinking": when credentials are stored (`recall maintenance credentials set openai|anthropic|azure ...`), the daemon runs the dispatcher daily (tunable via `RECALL_DISPATCHER_INTERVAL_SECONDS`) to refine/merge/summarize memories. Azure OpenAI requires `--endpoint`, `--deployment`, and `--api-version` alongside the key. Observability: `recall maintenance usage`, `recall maintenance stats`. Without a key, pending tasks surface via SessionStart for the live agent to claim.
 - `recall doctor` checks install state; `recall doctor --fix` or `recall setup local` wires MCP + hooks for any detected Codex/Claude Code.
 - Repo-local `.recall/context.md` is an optional export/fallback, not the primary integration.
 
