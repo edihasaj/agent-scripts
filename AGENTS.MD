@@ -110,6 +110,11 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 - Use this only when MCP is unavailable or shell-only flow needed. Cmds: `start`, `nav`, `eval`, `screenshot`, `pick`, `cookies`, `inspect`, `kill`.
 - Rebuild: `bun build scripts/browser-tools.ts --compile --target bun --outfile bin/browser-tools`.
 
+### Browser automation escalation path
+1. `chrome-devtools` MCP — primary. Exploration, debugging, one-shot interaction.
+2. `bin/browser-tools` — shell-only quick commands (screenshot/nav/eval) when a full Playwright script is overkill.
+3. `skills/browser-playwright-fallback` — deterministic Playwright scripts when MCP is unavailable or the flow needs assertions / retries / CI reproducibility. No install step; `npx playwright` self-manages its browser cache.
+
 ### xcp
 - Xcode project/workspace helper for managing targets, groups, files, build settings, and assets; run `xcp --help`.
 
