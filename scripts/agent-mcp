@@ -86,11 +86,13 @@ case "$PROFILE" in
     ;;
 
   atlassian)
-    # Remote SSE MCP for Jira + Confluence. Atlassian supports dynamic client
-    # registration, so mcp-remote's browser login works; tokens cached in
-    # ~/.mcp-auth.
+    # Streamable HTTP MCP for Jira + Confluence. mcp-remote uses Atlassian's
+    # authv2 endpoint for dynamic client registration; endpoint-specific OAuth
+    # state is cached under ~/.mcp-auth, so changing from /v1/sse requires a
+    # fresh login and does not reuse the legacy endpoint's cache entry.
     exec_npm_bin "$MCP_REMOTE" mcp-remote \
-      https://mcp.atlassian.com/v1/sse
+      https://mcp.atlassian.com/v1/mcp/authv2 \
+      --transport http-only
     ;;
 
   stripe)
