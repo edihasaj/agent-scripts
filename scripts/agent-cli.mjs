@@ -168,7 +168,7 @@ export function runDoctor(environment = process.env) {
     detail: existsSync(launcher) ? launcher : "bin/agent-mcp missing",
   });
 
-  if (platform === "darwin") {
+  if (platform === "darwin" && environment.AGENT_SYNC_ACTIVE !== "1") {
     const syncStatePath = resolve(environment.AGENT_SYNC_STATE || join(userHome, ".local", "state", "agent-sync", "last-run.json"));
     checks.push({ name: "automatic-sync", ...syncStateCheck(readJsonIfPresent(syncStatePath)) });
   }

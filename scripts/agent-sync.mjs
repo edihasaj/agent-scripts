@@ -175,7 +175,7 @@ export function runAgentSync(argv = process.argv.slice(2), environment = process
 
   acquireLock(lockPath);
   const startedAt = new Date().toISOString();
-  const syncEnvironment = { ...environment, AGENT_DOCTOR_SKIP_HOOK: "1" };
+  const syncEnvironment = { ...environment, AGENT_DOCTOR_SKIP_HOOK: "1", AGENT_SYNC_ACTIVE: "1" };
   try {
     const roots = [agentRoot];
     if (!setupState.publicOnly && existsSync(managerRoot)) roots.push(managerRoot);
