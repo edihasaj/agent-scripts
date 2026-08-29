@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { delimiter } from "node:path";
 import test from "node:test";
-import { parseAgentArgs, repairCommand, userCliPath } from "../scripts/agent-cli.mjs";
+import { parseAgentArgs, repairCommand, syncStateCheck, userCliPath } from "../scripts/agent-cli.mjs";
 
 test("agent doctor supports human, JSON, and quiet output modes", () => {
   assert.deepEqual(parseAgentArgs(["doctor"]), {
@@ -30,4 +30,12 @@ test("doctor repair commands preserve the stored machine policy", () => {
 test("doctor adds user CLI locations for non-login shells", () => {
   const value = userCliPath("/home/edi", "/usr/bin");
   assert.equal(value, ["/home/edi/.local/bin", "/home/edi/.npm-global/bin", "/usr/bin"].join(delimiter));
+});
+
+test("doctor reports automatic sync freshness and blockers", () => {
+  const now = Date.parse("2026-08-29T20:00:00Z");
+  assert.equal(syncStateCheck({ status: "ok", finishedAt: "2026-08-29T19:30:00Z" }, now).status, "pass");
+  assert.equal(syncStateCheck({ status: "ok", finishedAt: "2026-08-29T16:00:00Z" }, now).status, "fail");
+  assert.match(syncStateCheck({ status: "blocked", error: "dirty worktree" }, now).detail, /dirty worktree/);
+  assert.equal(syncStateCheck(null, now).status, "warn");
 });

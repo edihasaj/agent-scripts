@@ -102,6 +102,18 @@ function cacheHasEntries(path) {
   }
 }
 
+export function syncStateCheck(state, now = Date.now()) {
+  if (!state) return { status: "warn", detail: "automatic sync has not completed yet" };
+  if (state.status !== "ok") {
+    return { status: "fail", detail: `automatic sync ${state.status}: ${state.error || "unknown error"}` };
+  }
+  const age = now - Date.parse(state.finishedAt || "");
+  if (!Number.isFinite(age) || age > 2 * 60 * 60 * 1000) {
+    return { status: "fail", detail: `automatic sync stale: ${state.finishedAt || "unknown"}` };
+  }
+  return { status: "pass", detail: `last completed ${state.finishedAt}` };
+}
+
 export function repairCommand(profile, platform) {
   const flags = [];
   if (profile.publicOnly) flags.push(platform === "win32" ? "-PublicOnly" : "--public-only");
@@ -156,11 +168,17 @@ export function runDoctor(environment = process.env) {
     detail: existsSync(launcher) ? launcher : "bin/agent-mcp missing",
   });
 
+  if (platform === "darwin") {
+    const syncStatePath = resolve(environment.AGENT_SYNC_STATE || join(userHome, ".local", "state", "agent-sync", "last-run.json"));
+    checks.push({ name: "automatic-sync", ...syncStateCheck(readJsonIfPresent(syncStatePath)) });
+  }
+
   const privatePath = resolve(managerRoot, "configs", "mcps.json");
   const servers = !state.publicOnly && existsSync(privatePath) ? loadJson(privatePath).servers || [] : [];
   const clis = selectedClis(state, platform, doctorEnvironment.PATH);
   for (const server of servers) {
-    if (server.enabled === false || (state.headless && server.name === "chrome-devtools")) continue;
+    const policy = server.policy || (server.enabled === false ? "on-demand" : "global");
+    if (policy !== "global" || (state.headless && server.name === "chrome-devtools")) continue;
     if (!server.clis?.some((cli) => clis.includes(cli))) continue;
     const missing = (server.requires || []).filter((command) => !executableExists(command, platform, doctorEnvironment.PATH));
     checks.push({
@@ -188,6 +206,14 @@ export function runDoctor(environment = process.env) {
     },
     checks,
   };
+}
+
+function readJsonIfPresent(path) {
+  try {
+    return loadJson(path);
+  } catch {
+    return null;
+  }
 }
 
 function printHuman(report, quiet) {

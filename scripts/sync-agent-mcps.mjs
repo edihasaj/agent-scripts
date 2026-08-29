@@ -71,7 +71,7 @@ function loadManifest(path, required) {
     return [];
   }
   const parsed = JSON.parse(readFileSync(path, "utf8"));
-  if (parsed.version !== 1 || !Array.isArray(parsed.servers)) {
+  if (![1, 2].includes(parsed.version) || !Array.isArray(parsed.servers)) {
     throw new Error(`invalid MCP manifest: ${path}`);
   }
   const names = new Set();
@@ -84,6 +84,16 @@ function loadManifest(path, required) {
       server.replaces.some((name) => typeof name !== "string" || !name || name === server.name))) {
       throw new Error(`invalid replaces list for ${server.name}: ${path}`);
     }
+    server.policy ||= server.enabled === false ? "on-demand" : "global";
+    if (!["global", "on-demand", "workflow", "external"].includes(server.policy)) {
+      throw new Error(`invalid policy for ${server.name}: ${server.policy}`);
+    }
+    if (!Array.isArray(server.clis) || server.clis.some((cli) => !supportedClis.includes(cli))) {
+      throw new Error(`invalid clis list for ${server.name}: ${path}`);
+    }
+    if (server.auth?.type === "bearer-env" && !/^[A-Z][A-Z0-9_]*$/.test(server.auth.env || "")) {
+      throw new Error(`invalid bearer env for ${server.name}: ${path}`);
+    }
     names.add(server.name);
   }
   return parsed.servers;
@@ -94,9 +104,12 @@ function expand(value) {
 }
 
 function desiredConfig(server) {
+  const auth = server.auth?.type === "bearer-env"
+    ? { type: "bearer-env", env: server.auth.env }
+    : null;
   if (server.transport === "http") {
     if (typeof server.url !== "string") throw new Error(`${server.name}: HTTP server missing url`);
-    return { transport: "http", url: expand(server.url) };
+    return { transport: "http", url: expand(server.url), ...(auth ? { auth } : {}) };
   }
   const commandSpec = server.command?.[platform];
   if (!Array.isArray(commandSpec) || commandSpec.length === 0) {
@@ -131,7 +144,12 @@ function normalize(server) {
     if (transport.type === "stdio") {
       return { transport: "stdio", command: transport.command, args: transport.args || [] };
     }
-    return { transport: "http", url: transport.url };
+    const bearer = transport.bearer_token_env_var;
+    return {
+      transport: "http",
+      url: transport.url,
+      ...(bearer ? { auth: { type: "bearer-env", env: bearer } } : {}),
+    };
   }
   const type = server.type || server.transport;
   if (type === "local" || type === "stdio" || server.command) {
@@ -141,7 +159,18 @@ function normalize(server) {
     return { transport: "stdio", command: server.command, args: server.args || [] };
   }
   if (type === "remote" || type === "http" || type === "sse" || server.url) {
-    return { transport: "http", url: server.url };
+    const authorization = server.headers?.Authorization || server.headers?.authorization;
+    const match = typeof authorization === "string"
+      ? /^Bearer \$\{([A-Z][A-Z0-9_]*)\}$/.exec(authorization)
+      : null;
+    const bearer = server.bearer_token_env_var;
+    return {
+      transport: "http",
+      url: server.url,
+      ...(match ? { auth: { type: "bearer-env", env: match[1] } }
+        : bearer ? { auth: { type: "bearer-env", env: bearer } }
+          : authorization ? { auth: { type: "static" } } : {}),
+    };
   }
   return null;
 }
@@ -178,6 +207,44 @@ function currentCliConfig(cli, name) {
   throw new Error(`unsupported CLI: ${cli}`);
 }
 
+function currentCliEntries(cli) {
+  if (cli === "codex") {
+    const result = run("codex", ["mcp", "list", "--json"], true);
+    if (result.status !== 0) return [];
+    return JSON.parse(result.stdout).map((entry) => ({
+      name: entry.name,
+      enabled: entry.enabled !== false,
+      config: normalize(entry),
+    }));
+  }
+  if (cli === "claude") {
+    return Object.entries(readJson(join(userHome, ".claude.json")).mcpServers || {})
+      .map(([name, entry]) => ({ name, enabled: entry.enabled !== false, config: normalize(entry) }));
+  }
+  if (cli === "gemini") {
+    return Object.entries(readJson(join(userHome, ".gemini", "settings.json")).mcpServers || {})
+      .map(([name, entry]) => ({ name, enabled: entry.enabled !== false, config: normalize(entry) }));
+  }
+  if (cli === "opencode") {
+    const jsoncPath = join(userHome, ".config", "opencode", "opencode.jsonc");
+    if (existsSync(jsoncPath)) return [];
+    return Object.entries(readJson(join(userHome, ".config", "opencode", "opencode.json")).mcp || {})
+      .map(([name, entry]) => ({ name, enabled: entry.enabled !== false, config: normalize(entry) }));
+  }
+  if (cli === "copilot") {
+    const paths = [
+      join(userHome, ".copilot", "mcp-config.json"),
+      join(userHome, ".config", "github-copilot", "mcp.json"),
+    ];
+    const path = paths.find(existsSync);
+    if (!path) return [];
+    const data = readJson(path);
+    return Object.entries(data.mcpServers || data.servers || {})
+      .map(([name, entry]) => ({ name, enabled: entry.enabled !== false, config: normalize(entry) }));
+  }
+  return [];
+}
+
 function removeCliConfig(cli, name) {
   if (cli === "codex") run("codex", ["mcp", "remove", name]);
   else if (cli === "claude") run("claude", ["mcp", "remove", "-s", "user", name]);
@@ -185,7 +252,7 @@ function removeCliConfig(cli, name) {
   else if (cli === "copilot") run("copilot", ["mcp", "remove", name]);
 }
 
-function addCliConfig(cli, name, desired) {
+function cliAddArgs(cli, name, desired) {
   let args;
   if (desired.transport === "stdio") {
     if (cli === "codex") args = ["mcp", "add", name, "--", desired.command, ...desired.args];
@@ -193,12 +260,27 @@ function addCliConfig(cli, name, desired) {
     else if (cli === "gemini") args = ["mcp", "add", "-s", "user", name, desired.command, ...desired.args];
     else if (cli === "copilot") args = ["mcp", "add", name, "--", desired.command, ...desired.args];
   } else {
-    if (cli === "codex") args = ["mcp", "add", name, "--url", desired.url];
-    else if (cli === "claude") args = ["mcp", "add", "-s", "user", "--transport", "http", name, desired.url];
+    if (cli === "codex") {
+      args = ["mcp", "add", name, "--url", desired.url];
+      if (desired.auth?.type === "bearer-env") args.push("--bearer-token-env-var", desired.auth.env);
+    }
+    else if (cli === "claude") {
+      args = ["mcp", "add", "-s", "user", "--transport", "http", name, desired.url];
+      if (desired.auth?.type === "bearer-env") {
+        args.push("--header", `Authorization: Bearer \${${desired.auth.env}}`);
+      }
+    }
     else if (cli === "gemini") args = ["mcp", "add", "-s", "user", "-t", "http", name, desired.url];
     else if (cli === "copilot") args = ["mcp", "add", "--transport", "http", name, desired.url];
+    if (desired.auth && !["codex", "claude"].includes(cli)) {
+      throw new Error(`${cli} does not support managed ${desired.auth.type} auth for ${name}`);
+    }
   }
-  run(cli, args);
+  return args;
+}
+
+function addCliConfig(cli, name, desired) {
+  run(cli, cliAddArgs(cli, name, desired));
 }
 
 function writeOpenCodeConfig(name, desired) {
@@ -248,6 +330,7 @@ function main() {
   let matched = 0;
   let changed = 0;
   let skipped = 0;
+  let warnings = 0;
 
   for (const cli of selectedClis) {
     if (!executableExists(cli)) {
@@ -256,8 +339,9 @@ function main() {
       continue;
     }
     for (const server of servers) {
-      if (server.enabled === false || !server.clis?.includes(cli)) continue;
-      if (options.excluded.includes(server.name)) {
+      if (!server.clis.includes(cli) || server.policy === "external") continue;
+      const shouldRemove = options.excluded.includes(server.name) || server.policy !== "global";
+      if (shouldRemove) {
         try {
           const current = currentCliConfig(cli, server.name);
           if (!current) {
@@ -265,13 +349,13 @@ function main() {
             continue;
           }
           if (options.check) {
-            process.stderr.write(`unexpected: ${cli}/${server.name} is excluded\n`);
+            process.stderr.write(`unexpected: ${cli}/${server.name} policy=${server.policy}\n`);
             failures += 1;
             continue;
           }
           if (cli === "opencode") removeOpenCodeConfig(server.name);
           else removeCliConfig(cli, server.name);
-          process.stdout.write(`removed excluded: ${cli}/${server.name}\n`);
+          process.stdout.write(`removed ${server.policy}: ${cli}/${server.name}\n`);
           changed += 1;
         } catch (error) {
           process.stderr.write(`error: ${cli}/${server.name}: ${error.message}\n`);
@@ -323,19 +407,36 @@ function main() {
         failures += 1;
       }
     }
+    if (!options.publicOnly) {
+      const known = new Set(servers.filter((server) => server.clis.includes(cli)).map((server) => server.name));
+      for (const entry of currentCliEntries(cli).filter((item) => !known.has(item.name))) {
+        if (entry.enabled && entry.config?.transport === "stdio") {
+          process.stderr.write(`unmanaged-global-stdio: ${cli}/${entry.name}\n`);
+          if (options.check) failures += 1;
+          else warnings += 1;
+        } else {
+          process.stdout.write(`unmanaged preserved: ${cli}/${entry.name}\n`);
+          warnings += 1;
+        }
+      }
+    }
   }
 
   const mode = options.check ? "check" : "sync";
-  process.stdout.write(`MCP ${mode} complete: matched=${matched} changed=${changed} skipped=${skipped} clis=${selectedClis.join(",") || "none"}\n`);
+  process.stdout.write(`MCP ${mode} complete: matched=${matched} changed=${changed} skipped=${skipped} warnings=${warnings} clis=${selectedClis.join(",") || "none"}\n`);
   if (failures > 0) {
     process.stderr.write(`MCP ${mode} failed: ${failures} issue(s)\n`);
     process.exit(1);
   }
 }
 
-try {
-  main();
-} catch (error) {
-  process.stderr.write(`error: ${error.message}\n`);
-  process.exit(1);
+export { cliAddArgs, currentCliEntries, desiredConfig, loadManifest, normalize, sameConfig };
+
+if (process.argv[1] && resolve(process.argv[1]) === scriptPath) {
+  try {
+    main();
+  } catch (error) {
+    process.stderr.write(`error: ${error.message}\n`);
+    process.exit(1);
+  }
 }

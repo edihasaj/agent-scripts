@@ -119,6 +119,94 @@ function syncHook(repoRoot, hookName, source, options, platform) {
   return { status: "changed", detail: path };
 }
 
+function xml(value) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+export function launchAgentContents(repoRoot, managerRoot, userHome) {
+  const label = "com.edihasaj.agent-sync";
+  const logPath = join(userHome, ".local", "state", "agent-sync", "launchd.log");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>${label}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${xml(resolve(repoRoot, "bin", "agent-sync"))}</string>
+    <string>--quiet</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>AGENT_REPO_ROOT</key>
+    <string>${xml(repoRoot)}</string>
+    <key>MANAGER_REPO_ROOT</key>
+    <string>${xml(managerRoot)}</string>
+    <key>PATH</key>
+    <string>${xml(`${join(userHome, ".local", "bin")}:${join(userHome, ".npm-global", "bin")}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`)}</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>1800</integer>
+  <key>ThrottleInterval</key>
+  <integer>300</integer>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>LowPriorityIO</key>
+  <true/>
+  <key>Nice</key>
+  <integer>5</integer>
+  <key>StandardOutPath</key>
+  <string>${xml(logPath)}</string>
+  <key>StandardErrorPath</key>
+  <string>${xml(logPath)}</string>
+</dict>
+</plist>
+`;
+}
+
+function launchAgentLoaded(label) {
+  const uid = typeof process.getuid === "function" ? process.getuid() : null;
+  if (uid == null) return false;
+  return spawnSync("launchctl", ["print", `gui/${uid}/${label}`], { encoding: "utf8" }).status === 0;
+}
+
+function syncLaunchAgent(repoRoot, managerRoot, userHome, options, platform, environment) {
+  if (platform !== "darwin") return { status: "skip", detail: "automatic sync LaunchAgent is macOS-only" };
+  const label = "com.edihasaj.agent-sync";
+  const path = join(userHome, "Library", "LaunchAgents", `${label}.plist`);
+  const expected = launchAgentContents(repoRoot, managerRoot, userHome);
+  const matches = existsSync(path) && readFileSync(path, "utf8") === expected;
+  const loaded = environment.AGENT_SETUP_NO_LAUNCHCTL === "1" ? true : launchAgentLoaded(label);
+  if (matches && loaded) return { status: "match", detail: path };
+  if (options.check) {
+    return { status: "fail", detail: !matches ? `missing or stale LaunchAgent: ${path}` : `LaunchAgent not loaded: ${label}` };
+  }
+  mkdirSync(dirname(path), { recursive: true });
+  mkdirSync(join(userHome, ".local", "state", "agent-sync"), { recursive: true });
+  if (!matches) {
+    const temporary = `${path}.tmp`;
+    writeFileSync(temporary, expected, { mode: 0o644 });
+    renameSync(temporary, path);
+  }
+  if (environment.AGENT_SETUP_NO_LAUNCHCTL !== "1") {
+    const uid = process.getuid();
+    spawnSync("launchctl", ["bootout", `gui/${uid}`, path], { encoding: "utf8" });
+    const bootstrap = spawnSync("launchctl", ["bootstrap", `gui/${uid}`, path], { encoding: "utf8" });
+    if (bootstrap.status !== 0) {
+      const detail = (bootstrap.stderr || bootstrap.stdout || "launchctl bootstrap failed").trim();
+      return { status: "fail", detail: `${label}: ${detail}` };
+    }
+  }
+  return { status: "changed", detail: path };
+}
+
 export function runMaintenance(argv = process.argv.slice(2), environment = process.env) {
   const options = parseMaintenanceArgs(argv);
   const platform = environment.AGENT_SETUP_PLATFORM || process.platform;
@@ -160,6 +248,8 @@ export function runMaintenance(argv = process.argv.slice(2), environment = proce
       }
     }
   }
+
+  results.push(syncLaunchAgent(repoRoot, managerRoot, userHome, options, platform, environment));
 
   const failures = results.filter((result) => result.status === "fail");
   for (const result of results) {

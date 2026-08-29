@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
-# Managed by scripts/sync-agent-maintenance.mjs. Always preserve git's result;
-# drift is diagnostic and repaired explicitly with the platform setup command.
+# Managed by scripts/sync-agent-maintenance.mjs. Always preserve git's result.
+# Manual pulls reconcile the checked-out instructions, skills, MCP policy, and
+# runtime settings immediately; scheduled pulls use the same agent-sync path.
 set +e
 
 [[ "${AGENT_DOCTOR_SKIP_HOOK:-0}" == "1" ]] && exit 0
 
 agent_root="${AGENT_REPO_ROOT:-$HOME/Projects/agent}"
-doctor="$agent_root/scripts/agent-cli.mjs"
-if [[ ! -f "$doctor" ]] || ! command -v node >/dev/null 2>&1; then
-  printf 'agent doctor: skipped; checkout or node missing\n' >&2
+sync="$agent_root/bin/agent-sync"
+if [[ ! -x "$sync" ]] || ! command -v node >/dev/null 2>&1; then
+  printf 'agent sync: skipped; checkout, launcher, or node missing\n' >&2
   exit 0
 fi
 
-output="$(node "$doctor" doctor --quiet 2>&1)"
+output="$("$sync" --reconcile-only --quiet 2>&1)"
 status=$?
 if [[ "$status" -ne 0 ]]; then
-  printf 'agent doctor: shared setup drift detected after repository update\n' >&2
+  printf 'agent sync: reconciliation blocked after repository update\n' >&2
   [[ -n "$output" ]] && printf '%s\n' "$output" >&2
 fi
 exit 0

@@ -7,7 +7,10 @@ read_when:
 
 # MCP Profiles
 
-Use `~/Projects/agent/bin/agent-mcp <profile>` from global MCP config. Keep AGENTS compact and keep secrets in machine-local shell config, not git.
+Use `~/Projects/manager/configs/mcps.json` as the one declarative policy source.
+The synchronizer renders native runtime configuration and uses
+`~/Projects/agent/bin/agent-mcp <profile>` only for stdio servers that need the
+owned launcher. Keep secrets in machine-local environment files, never Git.
 
 ## Profiles
 
@@ -51,16 +54,14 @@ Two rules follow:
 There is no lazy start in the MCP stdio transport: a client boots every
 configured server when the session opens and holds it for the session's whole
 life. Long-lived Zed/Codex sessions therefore accumulate servers nobody called.
-So the default is **not registered**, and you turn one on for the stretch of
+So the default is **not user-global**, and you turn one on for the stretch of
 work that needs it:
 
 ```bash
-# Claude Code — add for this session's work, drop it when done
-claude mcp add miro -- ~/Projects/agent/bin/agent-mcp miro
-claude mcp remove miro -s user
-
-# Claude Code — scope to one repo instead (only sessions in that repo pay)
-cd ~/Projects/<repo> && claude mcp add -s project miro -- ~/Projects/agent/bin/agent-mcp miro
+# Claude Code — native HTTP, scoped to one repository
+cd ~/Projects/<repo>
+claude mcp add --transport http --scope project miro https://mcp.miro.com/
+claude mcp login miro
 
 # Codex — flip the flag in ~/.codex/config.toml
 [mcp_servers.glitchtip]
@@ -73,9 +74,19 @@ HTTP entries such as `zapfeed`, which cost no local process at all. Prefer an
 `http`/`url` registration over stdio wherever the vendor offers one — it has no
 process to strand.
 
-Profiles in the private manifest (`~/Projects/manager/configs/mcps.json`) are
-`enabled: false` for the same reason; `sync-agent-mcps` skips a disabled server
-rather than registering it.
+Manifest policy is explicit:
+
+- `global`: reconcile the user-global entry. Use only remote HTTP services that
+  every session needs and that do not start a local process.
+- `on-demand`: actively remove the user-global entry; register it only in a
+  project or an isolated manual session.
+- `workflow`: actively remove the user-global entry; an automation such as
+  Autoreview injects the exact server for that run.
+- `external`: preserve an entry owned by its runtime or installer, such as
+  Recall or Codex app MCPs.
+
+Legacy `enabled: false` entries migrate to `on-demand`. Unlike the old behavior,
+they are removed from global configuration instead of silently skipped.
 
 `load_machine_env` sources `~/.profile` and `~/.zprofile` with `set +eu`. Those
 files are written for interactive zsh and commonly pull in snippets that are
@@ -88,8 +99,9 @@ Private/org-specific profiles (and their setup notes) live in the private overla
 
 The public repository does not keep a second MCP manifest. Runtime-owned MCPs,
 hosted connectors, and plugins remain visible through each client's MCP list.
-Agent setup changes only the private registrations declared in
-`~/Projects/manager/configs/mcps.json`.
+Agent setup changes only names declared in `~/Projects/manager/configs/mcps.json`.
+Unknown enabled global stdio entries fail `--check` so a newly installed process
+cannot start silently in every session; they are never deleted automatically.
 
 `chrome-devtools` remains an optional launcher profile for explicit fallback
 use, but setup does not register it globally. Recall owns its own registration
@@ -113,7 +125,9 @@ Manifest command arrays use `{repo}` and `{home}` placeholders and provide
 missing prerequisite skips that registration without breaking instruction or
 skill setup. `replaces` lists old registration names for automatic migrations.
 `--exclude NAME` removes a managed registration instead of merely skipping it.
-Never put credentials in the manifest.
+HTTP bearer authentication uses `{ "type": "bearer-env", "env": "NAME" }`;
+the renderer writes the environment-variable reference appropriate to each
+runtime. Never put credentials in the manifest.
 
 Runtime npm packages use reviewed exact versions rather than floating tags.
 Check upstream releases deliberately, update the launcher and platform command
@@ -175,6 +189,9 @@ obsidian vaults
 ```
 
 The platform setup records its public/private, headless, and CLI-selection
-policy in `~/.config/agent/setup.json`. Managed Git hooks run the quiet doctor
-after pulls or rebases of either `agent` or `manager`; they report drift without
-changing configuration or failing the Git operation.
+policy in `~/.config/agent/setup.json`. On macOS it also installs
+`com.edihasaj.agent-sync`, which safely fast-forwards clean `agent` and `manager`
+checkouts every 30 minutes and reconciles all runtimes. Managed Git hooks run
+the same reconciliation immediately after manual pulls or rebases. Dirty,
+non-default, ahead, or diverged repositories are never modified; the blocker is
+recorded for `agent doctor`. See `docs/agent-sync.md`.

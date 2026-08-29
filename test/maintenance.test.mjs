@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { desiredSetupState, parseMaintenanceArgs } from "../scripts/sync-agent-maintenance.mjs";
+import { desiredSetupState, launchAgentContents, parseMaintenanceArgs } from "../scripts/sync-agent-maintenance.mjs";
 
 const maintenanceScript = resolve("scripts/sync-agent-maintenance.mjs");
 
@@ -30,6 +30,16 @@ test("maintenance accepts an empty option list for default desktop setup", () =>
     cliMode: "detected",
     clis: [],
   });
+});
+
+test("macOS automatic sync LaunchAgent is deterministic and scoped", () => {
+  const plist = launchAgentContents("/Users/edi/Projects/agent", "/Users/edi/Projects/manager", "/Users/edi");
+  assert.match(plist, /com\.edihasaj\.agent-sync/);
+  assert.match(plist, /\/Users\/edi\/Projects\/agent\/bin\/agent-sync/);
+  assert.match(plist, /<integer>1800<\/integer>/);
+  assert.match(plist, /AGENT_REPO_ROOT/);
+  assert.match(plist, /MANAGER_REPO_ROOT/);
+  assert.doesNotMatch(plist, /token|secret|password/i);
 });
 
 test("maintenance sync installs hooks for agent and manager and detects drift", (context) => {

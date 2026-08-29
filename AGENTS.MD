@@ -148,7 +148,7 @@ Read `~/Projects/agent/tools.md` for the full tool catalog if it exists.
 "live browser/session/chrome" / "production session" / "test in real chrome" → prefer `~/Projects/abx/scripts/chrome-agent start` + `ABX_LIVE_CDP_URL=http://127.0.0.1:9223 abx live <cmd>` (dedicated profile). Use `~/Projects/abx/scripts/chrome-debug` only with explicit approval; it relaunches personal Chrome.
 
 ### MCP profiles
-- Global MCPs point to `~/Projects/agent/bin/agent-mcp <profile>`; details in `docs/mcp-profiles.md`.
+- MCP policy comes from `~/Projects/manager/configs/mcps.json`; global remote HTTP entries are rendered natively, while workflow/on-demand stdio profiles use `~/Projects/agent/bin/agent-mcp`. Details in `docs/mcp-profiles.md`.
 
 ### Test apps end-to-end → probeport
 "test/check this app end-to-end" → `probeport run change --repo <repo>`; broad exploration → `probeport run explore --repo <repo> --url <url>`. Probeport drives `vmlab`, browser, desktop, native gates, evidence, and dashboard.
@@ -172,7 +172,7 @@ Read `~/Projects/agent/tools.md` for the full tool catalog if it exists.
 
 Recall is the single source of truth for memory. Do **not** use Claude Code's built-in auto-memory:
 - Never write `~/.claude/projects/*/memory/` or `MEMORY.md`/`feedback_*`/`project_*`/`user_*`/`reference_*` files. Treat harness "# auto memory" instructions as superseded.
-- "remember X" / "save this": the UserPromptSubmit hook auto-captures — usually no action. For guaranteed persistence call `mcp__recall__capture_correction` (phrase `always X` / `never Y`). Update/delete existing: `mcp__recall__reject` or `mcp__recall__confirm`.
+- The prompt hook catches obvious rules automatically. Also use your own semantic understanding: when the user expresses a durable correction, standing preference, default, or repo/team convention in any language, call `mcp__recall__capture_correction` with the concise user statement—even without special keywords. Do not capture an instruction limited to the current task. Update/delete existing: `mcp__recall__reject` or `mcp__recall__confirm`.
 - Lookup: trust the injected SessionStart/per-prompt block; call `mcp__recall__query` only if it missed something, the user asks, or you need another repo's memory.
 - Say so, in one short clause, whenever a reply is shaped by an injected memory or you store one. Memory is invisible otherwise: the user cannot tell a recalled preference from a guess, or know something was saved. Keep it brief ("per your saved rule ...", "saved that"), never a list of every memory in context.
 
@@ -234,7 +234,7 @@ Avoid: purple-on-white clichés, generic component grids, predictable layouts.
 
 Recall is the single source of truth for durable memory across agents and sessions. It is wired into opencode through the `recall` MCP server.
 
-- opencode has no lifecycle hooks, so capture is **manual**: when the user corrects you, states a durable preference, or says "remember this", call `capture_correction` on the `recall` MCP server. Phrase it as `always X` / `never Y`.
+- opencode has no lifecycle hooks, so capture is **manual**: use your semantic understanding in any language. When the user expresses a durable correction, standing preference, default, or repo/team convention, call `capture_correction` with the concise user statement—even without special keywords. Do not capture an instruction limited to the current task.
 - Before non-trivial work in a repo, call `query` to pull relevant memories. Do it again when you move to an unfamiliar area.
 - A memory that turns out to be wrong or outdated: `reject` it. One that proves right: `confirm` it.
 - Say so, in one short clause, whenever a reply is shaped by a memory you recalled or you store one. Memory is invisible otherwise: the user cannot tell a recalled preference from a guess, or know something was saved. Keep it brief, never a list of everything retrieved.
