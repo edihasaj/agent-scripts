@@ -87,6 +87,7 @@ elsewhere; a duplicate drifts and then breaks silently.
 - Use repo’s package manager/runtime; no swaps w/o approval.
 - Use the active agent's background job support for long jobs; tmux only for interactive/persistent (debugger/server).
 - Env/API keys: check `~/.profile` first; save reusable machine-local exports there.
+- Never expand a secret to check it exists. `${VAR:-x}` and `${VAR:+set}${VAR:-x}` print the VALUE when the variable is set; that leaks the credential into the transcript, where it cannot be scrubbed and must be rotated. Test presence only: `[ -n "${VAR:-}" ] && echo set || echo unset`, or `${VAR:+set}` alone. Same rule for `env`, `printenv`, `set`, and sourcing a keys file with `-x` on.
 - Secrets/tokens: `op`/1Password is optional last resort only, inside one named `tmux` session, strictly needed, targeted item/field only. Never call `op` directly, including diagnostics like `op --version`, `op whoami`, or broad vault/item listing. Keep output redacted. If a scoped `OP_SERVICE_ACCOUNT_TOKEN` is already configured, keep it and use service-account auth inside tmux for lock-independent access; do not run `op signin`. Only when deliberately selecting desktop-app auth, use a short `/tmp` tmux socket, unset `OP_SERVICE_ACCOUNT_TOKEN`/`OP_CONNECT_HOST`/`OP_CONNECT_TOKEN` inside the pane before the first `op` command, and pin the intended account. Inherited service-account credentials override desktop sign-in.
 
 ## Build / Test
