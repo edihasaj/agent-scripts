@@ -40,7 +40,7 @@ elsewhere; a duplicate drifts and then breaks silently.
 - X/bird/birdclaw: use our own `../slash-x` / repo slash commands for X work; do not import third-party X tooling without approval.
 - Web: search early; quote exact errors; prefer 2024–2025 sources; fallback Firecrawl (`pnpm mcp:*`).
 - Style: telegraph. Drop filler/grammar. Min tokens (global AGENTS + replies).
-- Prose others read (PR descriptions/comments, review replies, Jira/GitHub/Slack/Discord, commit bodies, docs): load the `plain-writing` skill first and apply it. Telegraph is for Edi only. Required for work repos.
+- Prose others read (PR descriptions/comments, review replies, Jira/GitHub/Slack/Discord, commit bodies, docs): load the repo's writing skill first and apply it. Telegraph is for Edi only. Required for work repos.
 
 ## Start
 - First in repo work: `git status --short --branch`, then docs list (`docs:list` or `bin/docs-list` if present).
